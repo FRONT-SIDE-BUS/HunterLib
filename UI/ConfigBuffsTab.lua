@@ -26,7 +26,7 @@ local function gatherStats(entries)
       if entry.candidate then stats.candidate = stats.candidate + 1 end
     else
       stats.saved = stats.saved + 1
-      if entry.enabled and entry.active and tonumber(entry.percent or 0) > 0 then
+      if entry.active and tonumber(entry.percent or 0) > 0 then
         stats.active = stats.active + 1
       end
     end
@@ -46,10 +46,7 @@ local function setStatusVisual(fontString, entry)
     return
   end
 
-  if not entry.enabled then
-    fontString:SetText("OFF")
-    fontString:SetTextColor(0.50, 0.50, 0.50)
-  elseif entry.active then
+  if entry.active then
     fontString:SetText("ON")
     fontString:SetTextColor(0.20, 1.00, 0.20)
   else
@@ -321,10 +318,10 @@ function HunterLib.UI.CreateBuffsTab(parent)
       row.secondaryButton:SetText("Delete")
       row.secondaryButton:SetScript("OnClick", function() HunterLib.DeleteCapturedBuff(entry.id) end)
     else
-      row.primaryButton:SetText(entry.enabled and "Off" or "On")
+      row.primaryButton:SetText("Update")
       row.primaryButton:SetScript("OnClick", function()
         HunterLib.UpdateSavedBuff(entry.id, row.nameBox:GetText(), row.percentBox:GetText())
-        HunterLib.ToggleSavedBuff(entry.id)
+        if HunterLib.UI.RefreshBuffsTab then HunterLib.UI.RefreshBuffsTab() end
       end)
       row.secondaryButton:SetText("Delete")
       row.secondaryButton:SetScript("OnClick", function()

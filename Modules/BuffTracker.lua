@@ -188,14 +188,18 @@ local function pruneDuplicateFallbackRows(map, aura, keepKey)
     end
 end
 
+
 local function findPreferredExistingKey(map, aura)
-    local key, info, sid
+    local key, info
     if not map or not aura then return nil end
     for key, info in pairs(map) do
         if info and sameIdentity(info, aura) then
-            sid = normalizeSpellID(info.spellID)
-            if sid then return sid end
-            if info.trackingKey and info.trackingKey ~= "" then return info.trackingKey end
+            if normalizeSpellID(info.spellID) then
+                return normalizeSpellID(info.spellID)
+            end
+            if info.trackingKey and info.trackingKey ~= "" then
+                return info.trackingKey
+            end
             return key
         end
     end
@@ -203,12 +207,13 @@ local function findPreferredExistingKey(map, aura)
 end
 
 local function resolveCanonicalKey(db, aura, rawKey)
-    local sid = normalizeSpellID(aura and aura.spellID)
-    if sid then return sid end
-    local preferred = findPreferredExistingKey(db and db.savedBuffs, aura)
-    if preferred then return preferred end
-    preferred = findPreferredExistingKey(db and db.capturedBuffs, aura)
-    if preferred then return preferred end
+    if aura and normalizeSpellID(aura.spellID) then
+        return normalizeSpellID(aura.spellID)
+    end
+    local key = findPreferredExistingKey(db and db.savedBuffs, aura)
+    if key then return key end
+    key = findPreferredExistingKey(db and db.capturedBuffs, aura)
+    if key then return key end
     return rawKey
 end
 
@@ -284,11 +289,14 @@ function HunterLib.CaptureCurrentPlayerBuffs()
     for key, aura in pairs(activeMap) do
         local rawKey = key
         key = resolveCanonicalKey(db, aura, key)
-        if key ~= rawKey then
-            aura.spellID = normalizeSpellID(aura.spellID) or normalizeSpellID(key)
+        if rawKey ~= key then
+            if normalizeSpellID(key) and not normalizeSpellID(aura.spellID) then
+                aura.spellID = normalizeSpellID(key)
+            end
             aura.id = key
             HunterLib.Debug("capture-key-resolve raw=" .. dbgval(rawKey) .. " -> " .. dbgval(key))
         end
+
         debugAuraSnapshot("capture-snapshot", key, aura)
         if aura.unresolved then
             unresolved = unresolved + 1
@@ -296,7 +304,10 @@ function HunterLib.CaptureCurrentPlayerBuffs()
             mergeAuraIntoInfo(db.savedBuffs[key], aura)
             pruneDuplicateFallbackRows(db.savedBuffs, aura, key)
             pruneDuplicateFallbackRows(db.capturedBuffs, aura, key)
-            if rawKey ~= key then db.savedBuffs[rawKey] = nil db.capturedBuffs[rawKey] = nil end
+            if rawKey ~= key then
+                db.savedBuffs[rawKey] = nil
+                db.capturedBuffs[rawKey] = nil
+            end
             HunterLib.Debug("capture-merge-saved buffID=" .. dbgval(key) .. ", finalName=" .. dbgval(db.savedBuffs[key].name))
             refreshed = refreshed + 1
         else
@@ -305,14 +316,20 @@ function HunterLib.CaptureCurrentPlayerBuffs()
                 mergeAuraIntoInfo(existing, aura)
                 pruneDuplicateFallbackRows(db.capturedBuffs, aura, key)
                 pruneDuplicateFallbackRows(db.savedBuffs, aura, key)
-                if rawKey ~= key then db.capturedBuffs[rawKey] = nil db.savedBuffs[rawKey] = nil end
+                if rawKey ~= key then
+                    db.capturedBuffs[rawKey] = nil
+                    db.savedBuffs[rawKey] = nil
+                end
                 HunterLib.Debug("capture-refresh-captured buffID=" .. dbgval(key) .. ", finalName=" .. dbgval(existing.name))
                 refreshed = refreshed + 1
             else
                 db.capturedBuffs[key] = buildNewCapturedEntry(aura)
                 pruneDuplicateFallbackRows(db.capturedBuffs, aura, key)
                 pruneDuplicateFallbackRows(db.savedBuffs, aura, key)
-                if rawKey ~= key then db.capturedBuffs[rawKey] = nil db.savedBuffs[rawKey] = nil end
+                if rawKey ~= key then
+                    db.capturedBuffs[rawKey] = nil
+                    db.savedBuffs[rawKey] = nil
+                end
                 HunterLib.Debug("capture-add buffID=" .. dbgval(key) .. ", finalName=" .. dbgval(db.capturedBuffs[key].name) .. ", desc=" .. dbgval(db.capturedBuffs[key].description) .. ", remain=" .. dbgval(db.capturedBuffs[key].remaining))
                 added = added + 1
             end
@@ -385,10 +402,7 @@ function HunterLib.DeleteSavedBuff(buffID)
 end
 
 function HunterLib.ToggleSavedBuff(buffID)
-    initBuffDB()
-    local info = HunterLib.GetDB().savedBuffs[buffID]
-    if info then info.enabled = info.enabled and nil or 1 end
-    if HunterLib.UI.RefreshBuffsTab then HunterLib.UI.RefreshBuffsTab() end
+    return nil
 end
 
 function HunterLib.IsSavedBuffActive(buffID)
@@ -415,7 +429,7 @@ function HunterLib.GetActiveTrackedBuffSummary()
     local names, count, buffID, info, aura = {}, 0, nil, nil, nil
     for buffID, info in pairs(db.savedBuffs) do
         aura = findActiveAuraForEntry(buffID, info, activeMap)
-        if aura and not aura.unresolved and info and info.enabled and sanitizePercent(info.percent) > 0 then
+        if aura and not aura.unresolved and info and sanitizePercent(info.percent) > 0 then
             count = count + 1
             mergeAuraIntoInfo(info, aura)
             table.insert(names, getDisplayName(info, buffID))
@@ -432,7 +446,7 @@ function HunterLib.GetActiveHasteModifier()
     local mod, buffID, info, aura = 1.0, nil, nil, nil
     for buffID, info in pairs(db.savedBuffs) do
         aura = findActiveAuraForEntry(buffID, info, activeMap)
-        if aura and not aura.unresolved and info and info.enabled and sanitizePercent(info.percent) > 0 then
+        if aura and not aura.unresolved and info and sanitizePercent(info.percent) > 0 then
             mod = mod * (1 - (sanitizePercent(info.percent) / 100))
         end
     end

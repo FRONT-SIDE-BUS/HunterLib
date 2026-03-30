@@ -101,7 +101,8 @@ function HunterLib.UI.CreateEditBox(parent, width, height, numeric)
   box:SetTextColor(colors.value[1], colors.value[2], colors.value[3], colors.value[4])
   box:SetScript("OnEscapePressed", function() this:ClearFocus() end)
   box:SetScript("OnEnterPressed", function() this:ClearFocus() end)
-  box:SetScript("OnEditFocusGained", function() this:HighlightText() end)
+  box:SetScript("OnEditFocusGained", function() end)
+  box:SetScript("OnEditFocusLost", function() this:HighlightText(0, 0) end)
   if numeric then box:SetNumeric(true) end
 
   holder.editBox = box
